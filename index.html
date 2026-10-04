@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 9 - Dying Days Of Chocolate</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@500;700&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Quicksand', sans-serif;
+            user-select: none;
+            background-color: #1a0f0a;
+            color: #fff;
+        }
+
+        h1, h2, h3, h4, .font-title {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(40, 20, 10, 0.5);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #8b4513;
+            border-radius: 4px;
+        }
+
+        .sugar-bar-gradient {
+            background: linear-gradient(90deg, #4CAF50 0%, #FFEB3B 50%, #F44336 100%);
+        }
+
+        /* Animated Pulsing for High Sugar Warning */
+        @keyframes pulse-danger {
+            0%, 100% { box-shadow: 0 0 15px rgba(244, 67, 54, 0.8); }
+            50% { box-shadow: 0 0 30px rgba(244, 67, 54, 1); }
+        }
+
+        .sugar-danger {
+            animation: pulse-danger 1s infinite;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden">
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container" class="w-full h-full absolute inset-0 z-0"></div>
+
+    <!-- HUD Overlay -->
+    <div id="hud-overlay" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 hidden">
+        
+        <!-- Top Navigation Bar / Stats -->
+        <div class="flex justify-between items-start w-full gap-4">
+            <!-- Left Stats Box -->
+            <div class="bg-gradient-to-r from-amber-950/90 to-amber-900/80 backdrop-blur-md p-4 rounded-2xl border-2 border-amber-600/50 shadow-2xl pointer-events-auto w-80">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-12 h-12 rounded-full bg-amber-700 border-2 border-amber-400 flex items-center justify-center font-bold text-2xl shadow-inner text-amber-200" id="hud-level">
+                        1
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-amber-100 leading-tight" id="hud-name">Choey "Choco-Late"</h2>
+                        <span class="text-xs bg-amber-800/80 text-amber-300 px-2 py-0.5 rounded-full font-semibold border border-amber-600" id="hud-class">Choco Craver</span>
+                    </div>
+                </div>
+
+                <!-- Health Bar -->
+                <div class="mb-2">
+                    <div class="flex justify-between text-xs font-bold mb-1">
+                        <span class="text-red-400 flex items-center gap-1"><i class="fa-solid fa-heart"></i> Health (HP)</span>
+                        <span id="hp-text" class="text-red-200">100 / 100</span>
+                    </div>
+                    <div class="w-full h-3 bg-red-950 rounded-full overflow-hidden border border-red-800">
+                        <div id="hp-bar" class="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300 w-full"></div>
+                    </div>
+                </div>
+
+                <!-- Sugar / Diabetes Meter -->
+                <div class="mb-2">
+                    <div class="flex justify-between text-xs font-bold mb-1">
+                        <span class="text-amber-400 flex items-center gap-1"><i class="fa-solid fa-cube"></i> Sugar Level (Risk)</span>
+                        <span id="sugar-text" class="text-amber-200">20%</span>
+                    </div>
+                    <div class="w-full h-3 bg-amber-950 rounded-full overflow-hidden border border-amber-700 relative">
+                        <div id="sugar-bar" class="h-full sugar-bar-gradient transition-all duration-300" style="width: 20%;"></div>
+                    </div>
+                </div>
+
+                <!-- XP Progress Bar -->
+                <div>
+                    <div class="flex justify-between text-xs font-bold mb-1">
+                        <span class="text-purple-300 flex items-center gap-1"><i class="fa-solid fa-star"></i> Experience</span>
+                        <span id="xp-text" class="text-purple-200">0 / 100</span>
+                    </div>
+                    <div class="w-full h-2 bg-purple-950 rounded-full overflow-hidden border border-purple-800">
+                        <div id="xp-bar" class="h-full bg-purple-500 transition-all duration-300" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini Map & Zone Marker -->
+            <div class="flex flex-col items-end gap-2 pointer-events-auto">
+                <div class="relative w-36 h-36 rounded-2xl bg-amber-950/90 border-2 border-amber-600/60 overflow-hidden shadow-2xl flex items-center justify-center">
+                    <canvas id="minimap-canvas" class="w-full h-full"></canvas>
+                    <div class="absolute inset-0 border-2 border-amber-500/20 rounded-2xl pointer-events-none"></div>
+                </div>
+                <div id="current-zone" class="bg-amber-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-amber-500/40 text-xs font-bold text-amber-200">
+                    <i class="fa-solid fa-location-dot text-amber-400 mr-1"></i> Chocolate City
+                </div>
+            </div>
+        </div>
+
+        <!-- Quest Objective Widget (Middle Right) -->
+        <div class="self-end my-auto bg-amber-950/80 backdrop-blur-md p-4 rounded-xl border border-amber-600/40 w-72 pointer-events-auto shadow-xl">
+            <h3 class="text-amber-400 font-bold text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-compass"></i> Current Quest
+            </h3>
+            <div id="active-quest-title" class="font-bold text-amber-100 text-sm mb-1">Late for Class!</div>
+            <p id="active-quest-desc" class="text-xs text-amber-300/80 mb-3 leading-relaxed">Reach the School of Chocolates before time runs out!</p>
+            <div class="w-full bg-amber-900/60 h-2 rounded-full overflow-hidden border border-amber-700/50">
+                <div id="quest-progress-bar" class="bg-amber-400 h-full transition-all duration-300" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <!-- Boss Health Bar (Centered Top when fighting boss) -->
+        <div id="boss-hud" class="self-center -mt-20 bg-amber-950/95 p-4 rounded-2xl border-2 border-red-600/80 w-full max-w-xl shadow-2xl hidden pointer-events-auto">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-red-400 font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-skull"></i> Sugar Overlord Demon</span>
+                <span id="boss-hp-text" class="text-red-200 text-sm font-bold">500 / 500</span>
+            </div>
+            <div class="w-full h-4 bg-red-950 rounded-full overflow-hidden border border-red-800">
+                <div id="boss-hp-bar" class="h-full bg-gradient-to-r from-red-600 via-orange-500 to-red-500 transition-all duration-200 w-full"></div>
+            </div>
+        </div>
+
+        <!-- Bottom Action Bar & Shortcuts -->
+        <div class="flex justify-between items-end w-full">
+            <!-- Skills / Hotbar -->
+            <div class="flex gap-2 pointer-events-auto">
+                <button onclick="useSkill(1)" class="w-14 h-14 bg-amber-900/80 hover:bg-amber-800 border-2 border-amber-500 rounded-xl flex flex-col items-center justify-center relative shadow-lg group transition">
+                    <i class="fa-solid fa-hand-fist text-xl text-amber-200"></i>
+                    <span class="text-[10px] text-amber-400 font-bold mt-0.5">Attack [1]</span>
+                </button>
+                <button onclick="useSkill(2)" class="w-14 h-14 bg-amber-900/80 hover:bg-amber-800 border-2 border-amber-500 rounded-xl flex flex-col items-center justify-center relative shadow-lg group transition">
+                    <i class="fa-solid fa-wand-magic-sparkles text-xl text-cyan-300"></i>
+                    <span class="text-[10px] text-amber-400 font-bold mt-0.5">Shot [2]</span>
+                </button>
+                <button onclick="useSkill(3)" class="w-14 h-14 bg-amber-900/80 hover:bg-amber-800 border-2 border-amber-500 rounded-xl flex flex-col items-center justify-center relative shadow-lg group transition">
+                    <i class="fa-solid fa-heart-pulse text-xl text-emerald-300"></i>
+                    <span class="text-[10px] text-amber-400 font-bold mt-0.5">Heal [3]</span>
+                </button>
+            </div>
+
+            <!-- Interactive Prompts Container -->
+            <div id="interaction-prompt" class="hidden bg-amber-950/90 text-amber-200 px-6 py-3 rounded-full border-2 border-amber-400 font-bold shadow-2xl animate-bounce pointer-events-auto flex items-center gap-2">
+                <span class="bg-amber-500 text-amber-950 px-2 py-0.5 rounded font-black text-sm">E</span>
+                <span id="interaction-text">Talk to NPC</span>
+            </div>
+
+            <!-- Menu Navigation Buttons -->
+            <div class="flex gap-2 pointer-events-auto">
+                <button onclick="toggleModal('inventory')" class="p-3 bg-amber-900/90 hover:bg-amber-800 border-2 border-amber-600 rounded-xl text-amber-200 font-bold text-sm flex items-center gap-2 shadow-lg transition">
+                    <i class="fa-solid fa-briefcase"></i> <span class="hidden sm:inline">Inventory</span>
+                </button>
+                <button onclick="toggleModal('skills')" class="p-3 bg-amber-900/90 hover:bg-amber-800 border-2 border-amber-600 rounded-xl text-amber-200 font-bold text-sm flex items-center gap-2 shadow-lg transition">
+                    <i class="fa-solid fa-sitemap"></i> <span class="hidden sm:inline">Skills</span>
+                </button>
+                <button onclick="toggleModal('quests')" class="p-3 bg-amber-900/90 hover:bg-amber-800 border-2 border-amber-600 rounded-xl text-amber-200 font-bold text-sm flex items-center gap-2 shadow-lg transition">
+                    <i class="fa-solid fa-scroll"></i> <span class="hidden sm:inline">Quests</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start / Class Selection Screen Overlay -->
+    <div id="start-modal" class="absolute inset-0 z-50 bg-amber-950/95 flex items-center justify-center p-4">
+        <div class="max-w-2xl w-full bg-gradient-to-b from-amber-900 to-amber-950 rounded-3xl p-8 border-4 border-amber-600 shadow-2xl text-center">
+            <h1 class="text-4xl sm:text-5xl font-black text-amber-300 mb-2 drop-shadow-md">Chapter 9</h1>
+            <h2 class="text-2xl sm:text-3xl font-bold text-amber-100 mb-4 drop-shadow">Dying Days Of Chocolate</h2>
+            <p class="text-amber-200/90 text-sm mb-6 leading-relaxed max-w-xl mx-auto">
+                Choey is always late for school because of his extreme love for chocolates! Help him navigate Chocolate City, defeat Sugar Monsters, consult Doctor Pedia Chocos, and face the Sugar Overlord Demon!
+            </p>
+
+            <h3 class="text-xl font-bold text-amber-300 mb-4">Choose Your Player Class</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <!-- Class 1 -->
+                <div onclick="selectClass('Choco Craver')" id="class-card-1" class="class-card border-2 border-amber-500 bg-amber-950/60 p-4 rounded-2xl cursor-pointer hover:bg-amber-800/50 transition flex flex-col items-center">
+                    <div class="w-16 h-16 rounded-full bg-amber-800 flex items-center justify-center text-3xl mb-2 text-amber-200">
+                        <i class="fa-solid fa-cookie-bite"></i>
+                    </div>
+                    <div class="font-bold text-amber-100 text-lg">Choco Craver</div>
+                    <div class="text-xs text-amber-300/80 mt-1">High Damage & Sugar Speed Boosts</div>
+                </div>
+                <!-- Class 2 -->
+                <div onclick="selectClass('Sugar Runner')" id="class-card-2" class="class-card border-2 border-amber-700/50 bg-amber-950/60 p-4 rounded-2xl cursor-pointer hover:bg-amber-800/50 transition flex flex-col items-center">
+                    <div class="w-16 h-16 rounded-full bg-amber-800 flex items-center justify-center text-3xl mb-2 text-amber-200">
+                        <i class="fa-solid fa-person-running"></i>
+                    </div>
+                    <div class="font-bold text-amber-100 text-lg">Sugar Runner</div>
+                    <div class="text-xs text-amber-300/80 mt-1">High Speed & Stamina Recovery</div>
+                </div>
+                <!-- Class 3 -->
+                <div onclick="selectClass('Health Knight')" id="class-card-3" class="class-card border-2 border-amber-700/50 bg-amber-950/60 p-4 rounded-2xl cursor-pointer hover:bg-amber-800/50 transition flex flex-col items-center">
+                    <div class="w-16 h-16 rounded-full bg-amber-800 flex items-center justify-center text-3xl mb-2 text-amber-200">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div class="font-bold text-amber-100 text-lg">Health Knight</div>
+                    <div class="text-xs text-amber-300/80 mt-1">Higher Health & Natural Sugar Resistance</div>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-amber-950 font-black text-xl rounded-2xl border-2 border-amber-300 shadow-xl transform active:scale-95 transition">
+                START ADVENTURE
+            </button>
+        </div>
+    </div>
+
+    <!-- Dialogue Modal -->
+    <div id="dialogue-modal" class="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm hidden flex items-end justify-center p-6">
+        <div class="max-w-3xl w-full bg-amber-950/95 border-2 border-amber-500 rounded-2xl p-6 shadow-2xl relative">
+            <div class="flex items-start gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-amber-800 border-2 border-amber-400 flex items-center justify-center text-3xl text-amber-200 shrink-0" id="dialogue-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="grow">
+                    <h3 class="text-xl font-bold text-amber-300 mb-1" id="dialogue-speaker">NPC Name</h3>
+                    <p class="text-amber-100 text-sm leading-relaxed mb-4 min-h-[48px]" id="dialogue-text">Dialogue message content goes here...</p>
+                    <div class="flex justify-end gap-2" id="dialogue-actions">
+                        <button onclick="closeDialogue()" class="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-xl text-sm transition">
+                            Continue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Modal -->
+    <div id="inventory-modal" class="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="max-w-2xl w-full bg-amber-950/95 border-2 border-amber-600 rounded-3xl p-6 shadow-2xl relative">
+            <div class="flex justify-between items-center mb-6 border-b border-amber-800/80 pb-3">
+                <h2 class="text-2xl font-bold text-amber-300 flex items-center gap-2">
+                    <i class="fa-solid fa-briefcase"></i> Inventory & Equipment
+                </h2>
+                <button onclick="toggleModal('inventory')" class="text-amber-400 hover:text-amber-200 text-2xl font-bold">&times;</button>
+            </div>
+
+            <!-- Equipment Slots -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="bg-amber-900/60 p-3 rounded-xl border border-amber-700/60 text-center">
+                    <span class="text-xs text-amber-400 font-bold uppercase block mb-1">Weapon</span>
+                    <div id="eq-weapon" class="text-sm font-bold text-amber-100">Toothbrush Sword</div>
+                </div>
+                <div class="bg-amber-900/60 p-3 rounded-xl border border-amber-700/60 text-center">
+                    <span class="text-xs text-amber-400 font-bold uppercase block mb-1">Shield</span>
+                    <div id="eq-shield" class="text-sm font-bold text-amber-100">Mint Shield</div>
+                </div>
+                <div class="bg-amber-900/60 p-3 rounded-xl border border-amber-700/60 text-center">
+                    <span class="text-xs text-amber-400 font-bold uppercase block mb-1">Armor</span>
+                    <div id="eq-armor" class="text-sm font-bold text-amber-100">Veggie Armor</div>
+                </div>
+            </div>
+
+            <!-- Inventory Grid -->
+            <h3 class="text-sm font-bold text-amber-400 mb-2 uppercase">Items Bag</h3>
+            <div id="inventory-grid" class="grid grid-cols-4 sm:grid-cols-6 gap-3 max-h-60 overflow-y-auto custom-scroll p-1">
+                <!-- Items rendered dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Skills Tree Modal -->
+    <div id="skills-modal" class="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="max-w-2xl w-full bg-amber-950/95 border-2 border-amber-600 rounded-3xl p-6 shadow-2xl relative">
+            <div class="flex justify-between items-center mb-4 border-b border-amber-800/80 pb-3">
+                <h2 class="text-2xl font-bold text-amber-300 flex items-center gap-2">
+                    <i class="fa-solid fa-sitemap"></i> Skill Tree
+                </h2>
+                <button onclick="toggleModal('skills')" class="text-amber-400 hover:text-amber-200 text-2xl font-bold">&times;</button>
+            </div>
+
+            <div class="text-sm text-amber-300 mb-4 flex justify-between items-center bg-amber-900/40 p-3 rounded-xl">
+                <span>Available Skill Points: <strong id="skill-points-count" class="text-amber-100 text-lg">0</strong></span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <!-- Skill 1 -->
+                <div class="bg-amber-900/50 p-4 rounded-2xl border border-amber-700/60 flex flex-col justify-between">
+                    <div>
+                        <div class="text-3xl text-amber-400 mb-2"><i class="fa-solid fa-bolt"></i></div>
+                        <h4 class="font-bold text-amber-100 mb-1">Metabolism Boost</h4>
+                        <p class="text-xs text-amber-300/80 mb-3">Reduces Sugar/Diabetes buildup rate by 15% per rank.</p>
+                    </div>
+                    <button onclick="upgradeSkill('metabolism')" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-xl text-xs transition">
+                        Upgrade (Rank <span id="skill-metabolism-rank">0</span>/3)
+                    </button>
+                </div>
+                <!-- Skill 2 -->
+                <div class="bg-amber-900/50 p-4 rounded-2xl border border-amber-700/60 flex flex-col justify-between">
+                    <div>
+                        <div class="text-3xl text-cyan-400 mb-2"><i class="fa-solid fa-shield-virus"></i></div>
+                        <h4 class="font-bold text-amber-100 mb-1">Sugar Shield</h4>
+                        <p class="text-xs text-amber-300/80 mb-3">Increases Maximum Health HP by +25 points per rank.</p>
+                    </div>
+                    <button onclick="upgradeSkill('shield')" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-xl text-xs transition">
+                        Upgrade (Rank <span id="skill-shield-rank">0</span>/3)
+                    </button>
+                </div>
+                <!-- Skill 3 -->
+                <div class="bg-amber-900/50 p-4 rounded-2xl border border-amber-700/60 flex flex-col justify-between">
+                    <div>
+                        <div class="text-3xl text-emerald-400 mb-2"><i class="fa-solid fa-person-running"></i></div>
+                        <h4 class="font-bold text-amber-100 mb-1">Punctuality Dash</h4>
+                        <p class="text-xs text-amber-300/80 mb-3">Increases player movement speed by 10% per rank.</p>
+                    </div>
+                    <button onclick="upgradeSkill('dash')" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-xl text-xs transition">
+                        Upgrade (Rank <span id="skill-dash-rank">0</span>/3)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quests Log Modal -->
+    <div id="quests-modal" class="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="max-w-2xl w-full bg-amber-950/95 border-2 border-amber-600 rounded-3xl p-6 shadow-2xl relative">
+            <div class="flex justify-between items-center mb-4 border-b border-amber-800/80 pb-3">
+                <h2 class="text-2xl font-bold text-amber-300 flex items-center gap-2">
+                    <i class="fa-solid fa-scroll"></i> Story Quest Journal
+                </h2>
+                <button onclick="toggleModal('quests')" class="text-amber-400 hover:text-amber-200 text-2xl font-bold">&times;</button>
+            </div>
+
+            <div id="quest-journal-list" class="space-y-3 max-h-80 overflow-y-auto custom-scroll pr-2">
+                <!-- Quests loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Web Audio API Sound Generator
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'hit') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'pickup') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.2);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'levelup') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.setValueAtTime(450, now + 0.1);
+                    osc.frequency.setValueAtTime(600, now + 0.2);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'jump') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'magic') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.25);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
+            } catch(e) {}
+        }
+
+        // Game State Variables
+        const gameState = {
+            player: {
+                name: 'Choey "Choco-Late"',
+                class: 'Choco Craver',
+                level: 1,
+                xp: 0,
+                maxXp: 100,
+                hp: 100,
+                maxHp: 100,
+                sugar: 20, // Sugar level %
+                maxSugar: 100,
+                skillPoints: 0,
+                speedMultiplier: 1.0,
+                pos: { x: 0, y: 0, z: 20 },
+                rot: 0
+            },
+            skills: {
+                metabolism: 0,
+                shield: 0,
+                dash: 0
+            },
+            inventory: [
+                { id: 'choco1', name: 'Dark Chocolate', type: 'choco', amount: 3, icon: 'fa-cookie' },
+                { id: 'veggie1', name: 'Broccoli Cure', type: 'health', amount: 2, icon: 'fa-apple-whole' }
+            ],
+            equipment: {
+                weapon: 'Toothbrush Sword',
+                shield: 'Mint Shield',
+                armor: 'Veggie Armor'
+            },
+            quests: [
+                { id: 1, title: 'Late for Class!', desc: 'Reach the School of Chocolates before time runs out!', target: 'school', current: 0, total: 1, completed: false, active: true },
+                { id: 2, title: 'Chocolate Craving', desc: 'Defeat 3 Gluttony Monsters in Chocolate City!', target: 'monsters', current: 0, total: 3, completed: false, active: false },
+                { id: 3, title: 'The Warning of Dr. Pedia', desc: 'Visit the Hospital of Choco Cancer Cells.', target: 'hospital', current: 0, total: 1, completed: false, active: false },
+                { id: 4, title: 'Final Lesson & Boss Battle', desc: 'Defeat the Sugar Overlord Demon in the Cemetery!', target: 'boss', current: 0, total: 1, completed: false, active: false }
+            ],
+            currentQuestIndex: 0
+        };
+
+        let scene, camera, renderer;
+        let playerMesh, playerBody;
+        let npcs = [];
+        let enemies = [];
+        let collectibles = [];
+        let bossEnemy = null;
+        let keys = {};
+        let isGrounded = true;
+        let verticalVelocity = 0;
+        let nearNPC = null;
+        let activeDialogue = null;
+
+        function initEngine() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2a1810);
+            scene.fog = new THREE.FogExp2(0x2a1810, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffecd6, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffd1a4, 1.2);
+            dirLight.position.set(40, 80, 40);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 200;
+            dirLight.shadow.camera.left = -60;
+            dirLight.shadow.camera.right = 60;
+            dirLight.shadow.camera.top = 60;
+            dirLight.shadow.camera.bottom = -60;
+            scene.add(dirLight);
+
+            buildEnvironment();
+            createPlayer();
+            spawnNPCs();
+            spawnEnemies();
+            spawnCollectibles();
+
+            window.addEventListener('resize', onWindowResize);
+            setupInputListeners();
+        }
+
+        function buildEnvironment() {
+            // Main Ground - Chocolate Ground
+            const groundGeo = new THREE.PlaneGeometry(250, 250);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x3d2314, roughness: 0.8 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Streets / Paths
+            const pathGeo = new THREE.PlaneGeometry(20, 200);
+            const pathMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.6 });
+            const mainStreet = new THREE.Mesh(pathGeo, pathMat);
+            mainStreet.rotation.x = -Math.PI / 2;
+            mainStreet.position.y = 0.05;
+            mainStreet.receiveShadow = true;
+            scene.add(mainStreet);
+
+            // 1. School Of Chocolates (North)
+            const schoolGroup = new THREE.Group();
+            schoolGroup.position.set(0, 0, -60);
+
+            const schoolGeo = new THREE.BoxGeometry(30, 15, 20);
+            const schoolMat = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.4 });
+            const schoolBuilding = new THREE.Mesh(schoolGeo, schoolMat);
+            schoolBuilding.position.y = 7.5;
+            schoolBuilding.castShadow = true;
+            schoolBuilding.receiveShadow = true;
+            schoolGroup.add(schoolBuilding);
+
+            // Roof
+            const roofGeo = new THREE.ConeGeometry(22, 8, 4);
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0xd2691e });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = 19;
+            roof.rotation.y = Math.PI / 4;
+            schoolGroup.add(roof);
+
+            // Signboard
+            const signCanvas = document.createElement('canvas');
+            signCanvas.width = 256; signCanvas.height = 64;
+            const ctx = signCanvas.getContext('2d');
+            ctx.fillStyle = '#4a2511'; ctx.fillRect(0, 0, 256, 64);
+            ctx.fillStyle = '#ffd700'; ctx.font = '24px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('School Of Chocolates', 128, 40);
+            const signTex = new THREE.CanvasTexture(signCanvas);
+            const signMat = new THREE.MeshBasicMaterial({ map: signTex });
+            const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 4), signMat);
+            signMesh.position.set(0, 12, 10.1);
+            schoolGroup.add(signMesh);
+
+            scene.add(schoolGroup);
+
+            // 2. Hospital of Choco Cancer Cells (West)
+            const hospGroup = new THREE.Group();
+            hospGroup.position.set(-60, 0, 0);
+
+            const hospMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(25, 12, 25),
+                new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.3 })
+            );
+            hospMesh.position.y = 6;
+            hospMesh.castShadow = true;
+            hospGroup.add(hospMesh);
+
+            // Cross Icon
+            const crossMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const cross1 = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 0.5), crossMat);
+            const cross2 = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 0.5), crossMat);
+            cross1.position.set(0, 9, 12.6);
+            cross2.position.set(0, 9, 12.6);
+            hospGroup.add(cross1);
+            hospGroup.add(cross2);
+
+            scene.add(hospGroup);
+
+            // 3. Cemetery of Chocolates (East)
+            const cemGroup = new THREE.Group();
+            cemGroup.position.set(60, 0, 0);
+
+            // Gravestones
+            for (let i = 0; i < 8; i++) {
+                const stone = new THREE.Mesh(
+                    new THREE.BoxGeometry(2, 3, 0.8),
+                    new THREE.MeshStandardMaterial({ color: 0x666666 })
+                );
+                const angle = (i / 8) * Math.PI * 2;
+                stone.position.set(Math.cos(angle) * 12, 1.5, Math.sin(angle) * 12);
+                stone.castShadow = true;
+                cemGroup.add(stone);
+            }
+            scene.add(cemGroup);
+
+            // Decorative Candy Trees & Chocolate Fountains
+            for (let i = 0; i < 15; i++) {
+                createCandyTree((Math.random() - 0.5) * 180, (Math.random() - 0.5) * 180);
+            }
+        }
+
+        function createCandyTree(x, z) {
+            if (Math.abs(x) < 25 && Math.abs(z) < 25) return; // Keep center clear
+            const tree = new THREE.Group();
+            tree.position.set(x, 0, z);
+
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8, 1.2, 6),
+                new THREE.MeshStandardMaterial({ color: 0x5a2d0c })
+            );
+            trunk.position.y = 3;
+            tree.add(trunk);
+
+            const foliage = new THREE.Mesh(
+                new THREE.SphereGeometry(3.5, 8, 8),
+                new THREE.MeshStandardMaterial({ color: Math.random() > 0.5 ? 0xff69b4 : 0x8b0000, roughness: 0.3 })
+            );
+            foliage.position.y = 7;
+            foliage.castShadow = true;
+            tree.add(foliage);
+
+            scene.add(tree);
+        }
+
+        function createPlayer() {
+            const playerGroup = new THREE.Group();
+
+            // Player Body
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8, 0.8, 2.5, 12),
+                new THREE.MeshStandardMaterial({ color: 0x3b82f6 })
+            );
+            body.position.y = 1.25;
+            body.castShadow = true;
+            playerGroup.add(body);
+
+            // Head
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.8, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xffdbac })
+            );
+            head.position.y = 2.8;
+            head.castShadow = true;
+            playerGroup.add(head);
+
+            // Hair/Hat
+            const hair = new THREE.Mesh(
+                new THREE.SphereGeometry(0.85, 12, 12),
+                new THREE.MeshStandardMaterial({ color: 0x4a2511 })
+            );
+            hair.position.set(0, 3.0, -0.1);
+            playerGroup.add(hair);
+
+            playerGroup.position.set(0, 0, 20);
+            scene.add(playerGroup);
+            playerMesh = playerGroup;
+        }
+
+        function spawnNPCs() {
+            // Chichy (Best Friend)
+            const chichy = createNPC('Chichy', 0xff1493, new THREE.Vector3(-6, 0, 15));
+            npcs.push({ id: 'chichy', name: 'Chichy', mesh: chichy, role: 'Best Friend' });
+
+            // Zayni (Best Friend)
+            const zayni = createNPC('Zayni', 0x00bfff, new THREE.Vector3(6, 0, 15));
+            npcs.push({ id: 'zayni', name: 'Zayni', mesh: zayni, role: 'Best Friend' });
+
+            // Doctor Pedia Chocos
+            const doctor = createNPC('Dr. Pedia Chocos', 0xffffff, new THREE.Vector3(-55, 0, 10));
+            npcs.push({ id: 'doctor', name: 'Doctor Pedia Chocos', mesh: doctor, role: 'Doctor' });
+
+            // Teacher Kopa
+            const teacher = createNPC('Teacher Kopa', 0x228b22, new THREE.Vector3(0, 0, -45));
+            npcs.push({ id: 'teacher', name: 'Teacher Kopa', mesh: teacher, role: 'Teacher' });
+        }
+
+        function createNPC(name, color, position) {
+            const group = new THREE.Group();
+
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8, 0.8, 2.5, 12),
+                new THREE.MeshStandardMaterial({ color: color })
+            );
+            body.position.y = 1.25;
+            body.castShadow = true;
+            group.add(body);
+
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.8, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xffdbac })
+            );
+            head.position.y = 2.8;
+            group.add(head);
+
+            group.position.copy(position);
+            scene.add(group);
+            return group;
+        }
+
+        function spawnEnemies() {
+            // Gluttony Slimes around town
+            for (let i = 0; i < 4; i++) {
+                const slime = createEnemy('Gluttony Slime', 0x8b0000, new THREE.Vector3(
+                    (Math.random() - 0.5) * 60,
+                    0,
+                    (Math.random() - 0.5) * 60
+                ), 30);
+                enemies.push(slime);
+            }
+
+            // Boss in Cemetery
+            bossEnemy = createEnemy('Sugar Overlord Demon', 0xff0000, new THREE.Vector3(60, 0, 0), 500, 2.5);
+            bossEnemy.isBoss = true;
+            enemies.push(bossEnemy);
+        }
+
+        function createEnemy(name, color, position, hp, scale = 1.0) {
+            const group = new THREE.Group();
+
+            const mesh = new THREE.Mesh(
+                new THREE.SphereGeometry(1.2 * scale, 12, 12),
+                new THREE.MeshStandardMaterial({ color: color, roughness: 0.3 })
+            );
+            mesh.position.y = 1.2 * scale;
+            mesh.castShadow = true;
+            group.add(mesh);
+
+            // Glowing eyes
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.2 * scale), eyeMat);
+            const eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.2 * scale), eyeMat);
+            eye1.position.set(-0.4 * scale, 1.5 * scale, 0.9 * scale);
+            eye2.position.set(0.4 * scale, 1.5 * scale, 0.9 * scale);
+            group.add(eye1); group.add(eye2);
+
+            group.position.copy(position);
+            scene.add(group);
+
+            return {
+                name: name,
+                mesh: group,
+                hp: hp,
+                maxHp: hp,
+                isAlive: true,
+                speed: 0.05
+            };
+        }
+
+        function spawnCollectibles() {
+            for (let i = 0; i < 10; i++) {
+                const choco = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.8, 0.8, 0.8),
+                    new THREE.MeshStandardMaterial({ color: 0x4a2511, roughness: 0.2 })
+                );
+                choco.position.set(
+                    (Math.random() - 0.5) * 80,
+                    0.5,
+                    (Math.random() - 0.5) * 80
+                );
+                scene.add(choco);
+                collectibles.push(choco);
+            }
+        }
+
+        function setupInputListeners() {
+            window.addEventListener('keydown', (e) => {
+                keys[e.code] = true;
+                if (e.code === 'KeyE') interactNPC();
+                if (e.code === 'Digit1') useSkill(1);
+                if (e.code === 'Digit2') useSkill(2);
+                if (e.code === 'Digit3') useSkill(3);
+            });
+
+            window.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+            });
+        }
+
+        function updatePlayer() {
+            const moveSpeed = 0.2 * gameState.player.speedMultiplier * (1 + gameState.skills.dash * 0.1);
+            let moved = false;
+
+            if (keys['KeyW'] || keys['ArrowUp']) {
+                playerMesh.position.z -= moveSpeed;
+                playerMesh.rotation.y = Math.PI;
+                moved = true;
+            }
+            if (keys['KeyS'] || keys['ArrowDown']) {
+                playerMesh.position.z += moveSpeed;
+                playerMesh.rotation.y = 0;
+                moved = true;
+            }
+            if (keys['KeyA'] || keys['ArrowLeft']) {
+                playerMesh.position.x -= moveSpeed;
+                playerMesh.rotation.y = -Math.PI / 2;
+                moved = true;
+            }
+            if (keys['KeyD'] || keys['ArrowRight']) {
+                playerMesh.position.x += moveSpeed;
+                playerMesh.rotation.y = Math.PI / 2;
+                moved = true;
+            }
+
+            // Jump
+            if (keys['Space'] && isGrounded) {
+                verticalVelocity = 0.35;
+                isGrounded = false;
+                playSound('jump');
+            }
+
+            // Apply Gravity
+            playerMesh.position.y += verticalVelocity;
+            if (!isGrounded) {
+                verticalVelocity -= 0.02;
+                if (playerMesh.position.y <= 0) {
+                    playerMesh.position.y = 0;
+                    isGrounded = true;
+                    verticalVelocity = 0;
+                }
+            }
+
+            // Camera follow
+            camera.position.x = playerMesh.position.x;
+            camera.position.y = playerMesh.position.y + 12;
+            camera.position.z = playerMesh.position.z + 16;
+            camera.lookAt(playerMesh.position);
+
+            // Check Collectibles
+            collectibles.forEach((item, index) => {
+                if (item.visible && playerMesh.position.distanceTo(item.position) < 1.5) {
+                    item.visible = false;
+                    playSound('pickup');
+                    gameState.player.sugar = Math.min(100, gameState.player.sugar + 15);
+                    updateHUD();
+                }
+            });
+
+            // Check NPC Proximity
+            nearNPC = null;
+            npcs.forEach(npc => {
+                if (playerMesh.position.distanceTo(npc.mesh.position) < 3.5) {
+                    nearNPC = npc;
+                }
+            });
+
+            const promptEl = document.getElementById('interaction-prompt');
+            if (nearNPC) {
+                promptEl.classList.remove('hidden');
+                document.getElementById('interaction-text').innerText = `Talk to ${nearNPC.name}`;
+            } else {
+                promptEl.classList.add('hidden');
+            }
+
+            // Zone Detection
+            const pos = playerMesh.position;
+            const zoneEl = document.getElementById('current-zone');
+            if (pos.z < -40) zoneEl.innerHTML = '<i class="fa-solid fa-graduation-cap"></i> School of Chocolates';
+            else if (pos.x < -40) zoneEl.innerHTML = '<i class="fa-solid fa-hospital"></i> Hospital of Choco Cancer Cells';
+            else if (pos.x > 40) zoneEl.innerHTML = '<i class="fa-solid fa-skull"></i> Cemetery of Chocolates';
+            else zoneEl.innerHTML = '<i class="fa-solid fa-city"></i> Chocolate City';
+
+            // Quest 1 check (School arrival)
+            if (gameState.currentQuestIndex === 0 && pos.z < -40) {
+                completeQuest(1);
+            }
+        }
+
+        function useSkill(slot) {
+            playSound('hit');
+            if (slot === 1) {
+                // Melee Attack
+                enemies.forEach(enemy => {
+                    if (enemy.isAlive && playerMesh.position.distanceTo(enemy.mesh.position) < 4.0) {
+                        enemy.hp -= 20;
+                        if (enemy.hp <= 0) {
+                            enemy.isAlive = false;
+                            enemy.mesh.visible = false;
+                            addXP(40);
+                            if (gameState.currentQuestIndex === 1) {
+                                gameState.quests[1].current++;
+                                if (gameState.quests[1].current >= gameState.quests[1].total) completeQuest(2);
+                            }
+                        }
+                    }
+                });
+            } else if (slot === 2) {
+                // Sugar Shot (Magic)
+                playSound('magic');
+                enemies.forEach(enemy => {
+                    if (enemy.isAlive && playerMesh.position.distanceTo(enemy.mesh.position) < 8.0) {
+                        enemy.hp -= 35;
+                        if (enemy.hp <= 0) {
+                            enemy.isAlive = false;
+                            enemy.mesh.visible = false;
+                            addXP(50);
+                        }
+                    }
+                });
+            } else if (slot === 3) {
+                // Heal Spell
+                playSound('pickup');
+                gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + 30);
+                gameState.player.sugar = Math.max(0, gameState.player.sugar - 20);
+                updateHUD();
+            }
+            updateHUD();
+        }
+
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                if (!enemy.isAlive) return;
+
+                // Move towards player if close
+                const dist = enemy.mesh.position.distanceTo(playerMesh.position);
+                if (dist < 18) {
+                    const dir = new THREE.Vector3().subVectors(playerMesh.position, enemy.mesh.position).normalize();
+                    enemy.mesh.position.addScaledVector(dir, enemy.speed);
+
+                    // Boss Health Bar visibility
+                    if (enemy.isBoss) {
+                        const bossHud = document.getElementById('boss-hud');
+                        bossHud.classList.remove('hidden');
+                        document.getElementById('boss-hp-bar').style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
+                        document.getElementById('boss-hp-text').innerText = `${enemy.hp} / ${enemy.maxHp}`;
+                    }
+
+                    // Attack Player
+                    if (dist < 2.0) {
+                        gameState.player.hp = Math.max(0, gameState.player.hp - 0.5);
+                        updateHUD();
+                    }
+                }
+            });
+        }
+
+        function interactNPC() {
+            if (!nearNPC) return;
+
+            let text = "";
+            if (nearNPC.id === 'chichy' || nearNPC.id === 'zayni') {
+                text = "Hey Choey! Why are you always late in class at 'School Of Chocolates'? You eat way too much chocolate for breakfast, lunch, and dinner!";
+            } else if (nearNPC.id === 'doctor') {
+                text = "I am Doctor Pedia Chocos. Warning: Eating excessive chocolate causes high sugar levels and diabetes! Know your limits before it turns into Choco Cancer Cells!";
+                if (gameState.currentQuestIndex === 2) completeQuest(3);
+            } else if (nearNPC.id === 'teacher') {
+                text = "Classmate Choey! Punctuality and proper nutrition are essential. Don't let gluttony destroy your school future!";
+            }
+
+            openDialogue(nearNPC.name, text);
+        }
+
+        function openDialogue(speaker, text) {
+            document.getElementById('dialogue-speaker').innerText = speaker;
+            document.getElementById('dialogue-text').innerText = text;
+            document.getElementById('dialogue-modal').classList.remove('hidden');
+        }
+
+        function closeDialogue() {
+            document.getElementById('dialogue-modal').classList.add('hidden');
+        }
+
+        function completeQuest(questId) {
+            const q = gameState.quests.find(x => x.id === questId);
+            if (q && !q.completed) {
+                q.completed = true;
+                addXP(100);
+                gameState.currentQuestIndex++;
+                if (gameState.currentQuestIndex < gameState.quests.length) {
+                    gameState.quests[gameState.currentQuestIndex].active = true;
+                }
+                updateHUD();
+            }
+        }
+
+        function addXP(amount) {
+            gameState.player.xp += amount;
+            if (gameState.player.xp >= gameState.player.maxXp) {
+                gameState.player.level++;
+                gameState.player.xp -= gameState.player.maxXp;
+                gameState.player.maxXp += 50;
+                gameState.player.skillPoints++;
+                playSound('levelup');
+            }
+            updateHUD();
+        }
+
+        function updateHUD() {
+            const p = gameState.player;
+            document.getElementById('hud-level').innerText = p.level;
+            document.getElementById('hud-hp-text')?.setHTML?.(`${Math.round(p.hp)} / ${p.maxHp}`);
+            document.getElementById('hp-text').innerText = `${Math.round(p.hp)} / ${p.maxHp}`;
+            document.getElementById('hp-bar').style.width = `${(p.hp / p.maxHp) * 100}%`;
+
+            document.getElementById('sugar-text').innerText = `${Math.round(p.sugar)}%`;
+            document.getElementById('sugar-bar').style.width = `${p.sugar}%`;
+
+            document.getElementById('xp-text').innerText = `${p.xp} / ${p.maxXp}`;
+            document.getElementById('xp-bar').style.width = `${(p.xp / p.maxXp) * 100}%`;
+
+            document.getElementById('skill-points-count').innerText = p.skillPoints;
+
+            // Active Quest Widget
+            const currentQ = gameState.quests[gameState.currentQuestIndex];
+            if (currentQ) {
+                document.getElementById('active-quest-title').innerText = currentQ.title;
+                document.getElementById('active-quest-desc').innerText = currentQ.desc;
+                document.getElementById('quest-progress-bar').style.width = currentQ.completed ? '100%' : '50%';
+            }
+
+            renderMinimap();
+        }
+
+        function renderMinimap() {
+            const canvas = document.getElementById('minimap-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Center background
+            ctx.fillStyle = '#2a1810';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Player Icon
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function toggleModal(modalType) {
+            const el = document.getElementById(`${modalType}-modal`);
+            if (el) {
+                if (el.classList.contains('hidden')) {
+                    el.classList.remove('hidden');
+                    if (modalType === 'inventory') renderInventory();
+                    if (modalType === 'quests') renderQuests();
+                } else {
+                    el.classList.add('hidden');
+                }
+            }
+        }
+
+        function renderInventory() {
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            gameState.inventory.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-amber-900/60 p-3 rounded-xl border border-amber-700/60 text-center flex flex-col items-center justify-center";
+                card.innerHTML = `
+                    <i class="fa-solid ${item.icon} text-2xl text-amber-300 mb-1"></i>
+                    <span class="text-xs font-bold text-amber-100">${item.name}</span>
+                    <span class="text-[10px] text-amber-400">x${item.amount}</span>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderQuests() {
+            const list = document.getElementById('quest-journal-list');
+            list.innerHTML = '';
+            gameState.quests.forEach(q => {
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-xl border ${q.completed ? 'bg-emerald-950/60 border-emerald-600' : 'bg-amber-900/40 border-amber-700/50'}`;
+                item.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-sm text-amber-100">${q.title}</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full ${q.completed ? 'bg-emerald-800 text-emerald-200' : 'bg-amber-800 text-amber-300'}">
+                            ${q.completed ? 'Completed' : 'In Progress'}
+                        </span>
+                    </div>
+                    <p class="text-xs text-amber-300/80">${q.desc}</p>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function upgradeSkill(skillKey) {
+            if (gameState.player.skillPoints > 0 && gameState.skills[skillKey] < 3) {
+                gameState.player.skillPoints--;
+                gameState.skills[skillKey]++;
+                document.getElementById(`skill-${skillKey}-rank`).innerText = gameState.skills[skillKey];
+                updateHUD();
+            }
+        }
+
+        function selectClass(className) {
+            gameState.player.class = className;
+            document.getElementById('hud-class').innerText = className;
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('hud-overlay').classList.remove('hidden');
+            initEngine();
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updatePlayer();
+            updateEnemies();
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
